@@ -4,6 +4,9 @@ from scripts.coach_core.constants.paths import PROJECT_ROOT
 from scripts.coach_core.constants.recipe import UNIFORM_OBJECTIVE
 from scripts.coach_core.types import Config
 
+DEFAULT_MODEL_NAME = "DraftLab-candidate"
+DEFAULT_UNIT_NAME = "draftlab"
+
 DEFAULT_CONFIG: Config = {
     "base_dir": str(PROJECT_ROOT),
     "python": "python3",
@@ -26,7 +29,7 @@ DEFAULT_CONFIG: Config = {
     "batch_size": 4,
     "learning_rate": 2.5e-6,
     "output_name": "draft-candidate-F16.gguf",
-    "model_name": "DFlash-Coach-candidate",
+    "model_name": DEFAULT_MODEL_NAME,
 }
 PATH_FIELDS = (
     "base_dir",

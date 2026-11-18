@@ -1,9 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+- Renamed the project to DraftLab and updated its CLI and default names.
+- Clarified feature capture requirements for local models and the bundled training recipes.
+
 ## 2.0.0
 
 - Added D-PACE as an optional DFlash2 training objective.
-- Added offline Whittle EAGLE-3 capture, training and export for V100, with patches for SpecForge and llama.cpp.
+- Added offline EAGLE-3 capture, training and export, with a Whittle/V100 recipe and patches for SpecForge and llama.cpp.
 - Updated the Lite dataset profile and guides to DFlash ChatGPT TraceMix Lite.
 - Grouped CLI commands and application code by domain around the coach.py entry point.
 - Split preparation, preflight, mentor reviews, training and benchmark into focused stages.

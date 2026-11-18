@@ -1,6 +1,9 @@
-# Установка и запуск DFlash Coach 2.0.0
+# Установка и запуск DraftLab 2.0.1
 
 [English version](guide.en.md) | [Описание проекта](../README.ru.md)
+
+Инструкция описывает готовый рецепт DFlash2 для локальной языковой модели.
+Команда `coach.py run` запускает захват признаков целевой модели.
 
 ## 1. Где запускать
 
@@ -13,7 +16,7 @@
 вторую. В `gpu_uuids` задайте индексы устройств или их UUID в нужном порядке.
 Для одной видеокарты также измените размещение тензоров в `server_argv`.
 
-Backend рассчитан на такие размеры:
+В готовом рецепте DFlash2 заданы следующие параметры.
 
 | Параметр | Значение |
 | --- | --- |
@@ -24,17 +27,17 @@ Backend рассчитан на такие размеры:
 | Точность обучения | FP32 master weights, FP16 autocast |
 | Файлы признаков | FP16, 8 x 2048 значений на токен |
 
-Это конкретный рецепт для совместимой модели семейства Qwen3.8 35B A3B.
-Другой target должен иметь совместимые tokenizer, embedding, head, признаки
-и draft. Одной смены путей недостаточно.
+Готовый рецепт рассчитан на модель, совместимую с Qwen3.8 35B A3B.
+Для другой архитектуры целевой модели подготовьте подходящие токенизатор,
+захват признаков, draft и рецепт обучения.
 
 ## 2. Проверка без установки зависимостей
 
 Из корня проекта:
 
 ```bash
-python3 coach.py demo --run-dir ../dflash-coach-demo
-python3 coach.py status --run-dir ../dflash-coach-demo
+python3 coach.py demo --run-dir ../draftlab-demo
+python3 coach.py status --run-dir ../draftlab-demo
 python3 -m unittest discover -s tests -v
 python3 coach.py privacy-check
 ```
@@ -261,8 +264,12 @@ python coach.py run --config configs/training.local.json --start-authorized
 
 ```bash
 python coach.py launch --config configs/training.local.json --start-authorized
-journalctl --user -u dflash-coach.service -f
+journalctl --user -u draftlab.service -f
 ```
+
+В командах используется имя по умолчанию `draftlab.service`. Для своего
+сервиса задайте `unit_name` в конфигурации и указывайте это имя при просмотре
+лога и остановке обучения.
 
 Для user-сервиса задайте закрытый файл ключа. Фоновый systemd-процесс не получает
 автоматически все переменные терминала. Launcher добавляет ExecStopPost для
@@ -272,7 +279,7 @@ journalctl --user -u dflash-coach.service -f
 
 ```bash
 python coach.py status --config configs/training.local.json
-systemctl --user stop dflash-coach.service
+systemctl --user stop draftlab.service
 ```
 
 Для foreground используется Ctrl-C. Сохраняется последний принятый checkpoint.

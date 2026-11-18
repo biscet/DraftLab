@@ -1,16 +1,23 @@
-# Офлайн-обучение Whittle EAGLE-3 на V100
+# Офлайн-обучение EAGLE-3
 
-[English version](eagle3.en.md) | [DFlash Coach](../README.ru.md)
+[English version](eagle3.en.md) | [DraftLab](../README.ru.md)
 
-llama.cpp сохраняет скрытые состояния [Whittle Q5_K_M GGUF](https://huggingface.co/logic65/Whittle-Qwen-3.8-35B-A3B-GGUF/blob/main/Whittle-Qwen-3.8-35B-A3B-Q5_K_M.gguf).
+> [!IMPORTANT]
+> Для офлайн-обучения нужны скрытые состояния целевой языковой модели.
+> В готовом рецепте выполните описанный ниже захват перед обучением.
+> Для другой поддерживаемой модели захватите признаки самостоятельно.
+> Токенизатор, слои и формат признаков должны совпадать с её рецептом SpecForge.
+> [Подготовка данных в SpecForge](https://github.com/sgl-project/SpecForge/blob/main/docs/sections/basic_usage/data_preparation.md)
+
+В готовом рецепте llama.cpp сохраняет скрытые состояния [Whittle Q5_K_M GGUF](https://huggingface.co/logic65/Whittle-Qwen-3.8-35B-A3B-GGUF/blob/main/Whittle-Qwen-3.8-35B-A3B-Q5_K_M.gguf).
 SpecForge обучает однослойный EAGLE-3 draft на этих признаках, используя
 замороженные embedding и LM head из того же GGUF.
 
-## Подготовка Ubuntu
+## Настройка готового рецепта на Ubuntu
 
 Нужны Python 3.12, CUDA 12.9 и одна NVIDIA Tesla V100 с 32 ГБ видеопамяти.
 Если подходящих карт несколько, задайте UUID выбранной карты в
-`CUDA_VISIBLE_DEVICES`. Выполняйте команды из корня DFlash Coach.
+`CUDA_VISIBLE_DEVICES`. Выполняйте команды из корня DraftLab.
 `SF` и `LLAMA` ниже указывают на новые рабочие копии под рецепт Whittle.
 
 ```bash

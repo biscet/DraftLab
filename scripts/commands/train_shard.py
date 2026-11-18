@@ -4,6 +4,7 @@
 import argparse
 from pathlib import Path
 
+from scripts.coach_core.constants.configuration import DEFAULT_MODEL_NAME
 from scripts.coach_core.constants.recipe import TRAINING_OBJECTIVES, UNIFORM_OBJECTIVE
 
 
@@ -25,7 +26,7 @@ def parse_args():
     parser.add_argument("--learning-rate", type=float, default=1e-5)
     parser.add_argument("--initial-draft", type=Path, required=True)
     parser.add_argument("--output-name", default="draft-candidate-F16.gguf")
-    parser.add_argument("--model-name", default="DFlash-Coach-candidate")
+    parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
     parser.add_argument("--pool-field", default="project")
     parser.add_argument("--min-train", type=int, default=490)
     parser.add_argument("--min-eval", type=int, default=55)

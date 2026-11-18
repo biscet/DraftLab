@@ -1,16 +1,23 @@
-# Offline Whittle EAGLE-3 on V100
+# Offline EAGLE-3 training
 
-[Русская версия](eagle3.ru.md) | [DFlash Coach](../README.md)
+[Русская версия](eagle3.ru.md) | [DraftLab](../README.md)
 
-llama.cpp captures the hidden states of the [Whittle Q5_K_M GGUF](https://huggingface.co/logic65/Whittle-Qwen-3.8-35B-A3B-GGUF/blob/main/Whittle-Qwen-3.8-35B-A3B-Q5_K_M.gguf).
+> [!IMPORTANT]
+> Offline training requires hidden states from the target language model.
+> Run the capture command below before training with the bundled recipe.
+> For another supported target, capture its features separately using the
+> tokenizer, layers, and format required by its SpecForge recipe.
+> [SpecForge data preparation](https://github.com/sgl-project/SpecForge/blob/main/docs/sections/basic_usage/data_preparation.md)
+
+In the bundled recipe, llama.cpp captures the hidden states of the [Whittle Q5_K_M GGUF](https://huggingface.co/logic65/Whittle-Qwen-3.8-35B-A3B-GGUF/blob/main/Whittle-Qwen-3.8-35B-A3B-Q5_K_M.gguf).
 SpecForge trains a one-layer EAGLE-3 draft from those features using the frozen
 embedding and output head extracted from the same GGUF file.
 
-## Set up the Ubuntu worker
+## Set up the bundled recipe on Ubuntu
 
 Use Python 3.12, CUDA 12.9, and one NVIDIA Tesla V100 with 32 GB of VRAM. Select
 the GPU by UUID with `CUDA_VISIBLE_DEVICES` if multiple cards qualify. Run the
-commands from the DFlash Coach root. `SF` and `LLAMA` below are new checkouts
+commands from the DraftLab root. `SF` and `LLAMA` below are new checkouts
 dedicated to the Whittle recipe.
 
 ```bash

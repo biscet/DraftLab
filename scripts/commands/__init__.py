@@ -1,1 +1,1 @@
-"""DFlash Coach commands."""
+"""DraftLab commands."""

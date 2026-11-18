@@ -1,25 +1,25 @@
-# DFlash Coach
+# DraftLab
 
-Version 2.0.0. [Russian instructions](README.ru.md).
+Version 2.0.1. [Russian instructions](README.ru.md).
 
 > [!NOTE]
 > **Experimental community release.** This release is intended for research
 > and hands-on experiments with draft-model training and speculative decoding.
 
-DFlash Coach captures features from a GGUF target model, fine-tunes a DFlash2
-draft and compares the result with its parent. DeepSeek Flash reviews validation
-metrics after each shard. It can change the learning rate or stop training.
+DraftLab is a research toolkit for training draft models and evaluating
+speculative decoding on local language models. It includes DFlash2 training
+with D-PACE, offline EAGLE-3 training, and GGUF feature capture.
 
-The included training backend is specific to a Qwen3.8 35B A3B-compatible recipe.
-It is not a general trainer for every DFlash model. GPU training requires Linux
-and CUDA. The offline demo, status command and most tests also work on macOS.
+GPU training requires a compatible model, capture runtime, and recipe. The
+bundled recipes run on Linux with CUDA. The offline demo, status command and
+most tests also work on macOS.
 
 ## What is included
 
 - Capture and token-count tools for a compatible llama.cpp fork.
 - A full draft trainer with checkpoint, optimizer, scaler and RNG recovery.
 - Uniform and D-PACE training objectives for DFlash2.
-- Offline Whittle EAGLE-3 capture, training and GGUF export for a 32 GB V100.
+- Offline EAGLE-3 capture, training and GGUF export with a V100 recipe.
 - A controller that processes feature files in bounded shards.
 - DeepSeek review, decision history and learning-rate changes.
 - A benchmark for no-draft, parent draft and candidate draft.
@@ -33,8 +33,8 @@ The browser dashboard is not implemented in this version.
 Python 3.10 or newer is enough. No packages or API key are needed.
 
 ```bash
-python3 coach.py demo --run-dir ../dflash-coach-demo
-python3 coach.py status --run-dir ../dflash-coach-demo
+python3 coach.py demo --run-dir ../draftlab-demo
+python3 coach.py status --run-dir ../draftlab-demo
 python3 -m unittest discover -s tests -v
 python3 coach.py privacy-check
 ```
@@ -52,19 +52,28 @@ The [Russian guide](docs/guide.ru.md) covers the same steps.
 Start with `configs/example.json`. Copy it to `configs/training.local.json`
 before changing paths. Paths in JSON are resolved relative to that JSON file.
 The small dataset example uses `configs/lite.example.json` instead.
+`coach.py run` drives feature capture as part of the bundled DFlash2 workflow.
+For a different target architecture, provide a compatible capture tool and
+DFlash2 recipe.
 
 Set `"training_objective": "dpace"` before preparing a new run to use
 D-PACE. The default is `uniform`. The DFlash2 guide explains how D-PACE
 weights token and selector losses.
 
-## Train a Whittle EAGLE-3 draft
+## Train an EAGLE-3 draft
 
 `python3 coach.py eagle3 --help` lists the capture, training and export stages.
-The [EAGLE-3 guide](docs/eagle3.en.md) covers setup, preparation of frozen target
-tables, and resuming an offline run with SpecForge and llama.cpp.
+The [EAGLE-3 guide](docs/eagle3.en.md) shows how to run the bundled Whittle
+recipe on a V100 with SpecForge and llama.cpp.
 
-The research notes in ML-Docs cover the original D-PACE experiment and the
-Whittle EAGLE-3 feature format. [ML-Docs](https://github.com/biscet/ML-Docs)
+> [!IMPORTANT]
+> EAGLE-3 training reads precomputed target features. Run `eagle3 capture`
+> before `eagle3 train` for the bundled recipe. For another supported target,
+> capture its features separately and use a matching
+> [SpecForge recipe](https://github.com/sgl-project/SpecForge/blob/main/docs/sections/basic_usage/training.md).
+
+ML-Docs covers the D-PACE experiment and EAGLE-3 feature layout.
+[ML-Docs](https://github.com/biscet/ML-Docs)
 
 ## Public dataset examples
 
@@ -97,7 +106,7 @@ response quality. The candidate is not installed into an inference service.
 The architecture is documented in the
 [Russian architecture guide](docs/architecture.ru.md).
 
-`main` contains v2.0.0. The `v1.0.0` branch preserves the first release.
+`main` contains v2.0.1. The `v2.0.0` and `v1.0.0` branches preserve earlier releases.
 See the [changelog](CHANGELOG.md) and [release steps](docs/releases.md).
 
 Original utilities use Apache-2.0. The upstream DFlash model implementation uses

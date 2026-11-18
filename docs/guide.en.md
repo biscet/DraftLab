@@ -1,6 +1,9 @@
-# Set up and use DFlash Coach 2.0.0
+# Set up and use DraftLab 2.0.1
 
 [Русская версия](guide.ru.md) | [Project overview](../README.md)
+
+This guide covers the bundled DFlash2 recipe for a local language model.
+The controller captures target features as part of `coach.py run`.
 
 ## 1. Choose where to run each part
 
@@ -13,7 +16,7 @@ use the first one. The target's per-layer token embedding table uses the second
 one. Set `gpu_uuids` to your device indices or GPU UUIDs. If you use one GPU,
 also change the benchmark arguments in `server_argv` to match that layout.
 
-The current backend has these fixed values:
+The bundled DFlash2 recipe uses these values:
 
 | Item | Value |
 | --- | --- |
@@ -24,17 +27,17 @@ The current backend has these fixed values:
 | Training precision | FP32 master weights, FP16 autocast |
 | Feature files | FP16, 8 x 2048 values per captured token |
 
-This is a specific Qwen3.8 35B A3B-compatible recipe. Another target needs a
-compatible tokenizer, embeddings, head, feature extraction and draft model.
-Changing paths alone is not enough.
+The bundled recipe expects a target compatible with Qwen3.8 35B A3B.
+For a different target architecture, provide a matching tokenizer, feature
+capture, draft model, and training recipe.
 
 ## 2. Check the source copy without installing anything
 
 From the repository root:
 
 ```bash
-python3 coach.py demo --run-dir ../dflash-coach-demo
-python3 coach.py status --run-dir ../dflash-coach-demo
+python3 coach.py demo --run-dir ../draftlab-demo
+python3 coach.py status --run-dir ../draftlab-demo
 python3 -m unittest discover -s tests -v
 python3 coach.py privacy-check
 ```
@@ -260,8 +263,12 @@ Linux systemd user-service launch:
 
 ```bash
 python coach.py launch --config configs/training.local.json --start-authorized
-journalctl --user -u dflash-coach.service -f
+journalctl --user -u draftlab.service -f
 ```
+
+The commands use the default unit `draftlab.service`. For a deployment with
+a custom unit, set `unit_name` in the configuration and use that name when
+viewing logs or stopping training.
 
 Use a private mentor key file for the user-service launch. User services do not
 automatically inherit all variables from the launching terminal. The launcher
@@ -271,7 +278,7 @@ machine must already allow that user's systemd manager to remain active.
 
 ```bash
 python coach.py status --config configs/training.local.json
-systemctl --user stop dflash-coach.service
+systemctl --user stop draftlab.service
 ```
 
 Ctrl-C stops a foreground run. The controller retains the last committed

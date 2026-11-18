@@ -1,4 +1,4 @@
-"""Capture, train and export a Whittle EAGLE-3 draft offline."""
+"""Capture features, train and export an EAGLE-3 draft offline."""
 
 import argparse
 import subprocess
@@ -28,7 +28,11 @@ def positive_int(value: str) -> int:
 
 def parse_args() -> argparse.Namespace:
     """Read the selected stage and its inputs."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        epilog="The bundled recipe uses Whittle GGUF. For other supported targets, "
+        "capture features separately and use the matching SpecForge recipe.",
+    )
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--specforge", type=absolute_path, required=True, help="Patched SpecForge checkout")
     common.add_argument("--work-dir", type=absolute_path, required=True, help="Job directory")
@@ -50,7 +54,12 @@ def parse_args() -> argparse.Namespace:
     capture.add_argument("--limit", type=positive_int)
     capture.set_defaults(run=eagle3.capture)
 
-    train = commands.add_parser("train", parents=[common], help="Train the draft from saved teacher states")
+    train = commands.add_parser(
+        "train",
+        parents=[common],
+        description="Train the draft from features prepared by the capture stage.",
+        help="Train the draft from saved teacher states",
+    )
     train.add_argument("--features", type=absolute_path)
     train.add_argument("--resume", type=absolute_path)
     train.add_argument("--max-steps", type=positive_int)

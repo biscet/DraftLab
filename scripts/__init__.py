@@ -1,1 +1,1 @@
-"""DFlash Coach application packages; launch commands through coach.py."""
+"""DraftLab application packages; launch commands through coach.py."""

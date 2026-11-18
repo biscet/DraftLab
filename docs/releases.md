@@ -6,21 +6,23 @@ The public repository is [biscet/DraftLab](https://github.com/biscet/DraftLab).
 Version 1.0.0 starts this source repository's history independently of model
 weights and dataset versions.
 
-- `main` contains v2.0.0 with D-PACE training and the offline Whittle EAGLE-3 workflow.
-- The branch `v1.0.0` preserves the original first release.
+- `main` contains DraftLab v2.0.1.
+- The `v2.0.0` and `v1.0.0` branches preserve earlier releases.
 
 Before the next release, update VERSION and CHANGELOG and review the intended
 source changes. Run the relevant tests and the source privacy check, then commit
-the reviewed source and publish it to `main`.
+the reviewed source and publish it to `main`. When archiving the previous release,
+branch from its commit and publish the snapshot alongside `main`.
 
 ```bash
 git switch main
+git branch v2.0.1 main
 python3 -m unittest discover -s tests -v
 python3 coach.py privacy-check
 git status --short
 git diff --cached
-git commit -m "Release DFlash Coach v2.1.0"
-git push origin main
+git commit -m "Release DraftLab v2.1.0"
+git push --atomic origin main refs/heads/v2.0.1
 ```
 
 Stage the intended files before committing. Keep private datasets, weights,
@@ -32,12 +34,14 @@ release snapshot.
 Публичный репозиторий — [biscet/DraftLab](https://github.com/biscet/DraftLab).
 Версия 1.0.0 начинает историю исходников независимо от версий весов и датасетов.
 
-- В `main` опубликована версия v2.0.0 с обучением D-PACE и офлайн-сценарием Whittle EAGLE-3.
-- Ветка `v1.0.0` сохраняет исходный первый релиз.
+- В `main` опубликована версия DraftLab v2.0.1.
+- Предыдущие выпуски сохранены в ветках `v2.0.0` и `v1.0.0`.
 
 Перед выпуском обновите VERSION и CHANGELOG, проверьте состав изменений,
 необходимые тесты и privacy-check. Сохраните проверенные изменения в коммите
-и отправьте его в `main`. Нужные файлы следует заранее добавить в staging.
+и отправьте его в `main`. Если предыдущий выпуск нужно сохранить, создайте
+ветку от его коммита и отправьте обе ветки одним push.
+Нужные файлы следует заранее добавить в staging.
 
 Не добавляйте в Git приватные датасеты, веса, ключи и результаты рабочих run.
 Не перезаписывайте опубликованные срезы через force-push.

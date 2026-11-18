@@ -1,1 +1,1 @@
-"""DFlash Coach preflight checks."""
+"""DraftLab preflight checks."""

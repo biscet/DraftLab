@@ -1,1 +1,1 @@
-"""DFlash Coach benchmarking."""
+"""DraftLab benchmarking."""

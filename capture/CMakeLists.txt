@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(dflash_coach_capture LANGUAGES C CXX)
+project(draftlab_capture LANGUAGES C CXX)
 
 if(NOT LLAMA_CPP_DIR)
   message(FATAL_ERROR "Set LLAMA_CPP_DIR to the compatible llama.cpp fork checkout")

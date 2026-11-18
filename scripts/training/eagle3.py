@@ -131,7 +131,7 @@ def train(args: argparse.Namespace) -> None:
         max_tokens = int(json.loads(manifest.read_text())["max_tokens"])
         command.append(f"data.max_length={max_tokens}")
     elif not args.plan:
-        raise FileNotFoundError(f"Missing capture manifest at {manifest}")
+        raise FileNotFoundError(f"Missing capture manifest at {manifest}. Run eagle3 capture first.")
     if args.max_steps is not None:
         command.append(f"training.max_steps={args.max_steps}")
     if args.resume is not None:

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from scripts.coach_core.configuration import load_config
+from scripts.coach_core.constants.configuration import DEFAULT_UNIT_NAME
 
 
 def main():
@@ -23,7 +24,7 @@ def main():
     config = args.config.resolve()
     cfg = load_config(config)
     root = Path(__file__).resolve().parents[2]
-    unit = cfg.get("unit_name", "dflash-coach")
+    unit = cfg.get("unit_name", DEFAULT_UNIT_NAME)
     if not re.fullmatch(r"[A-Za-z0-9_-]+", unit):
         raise ValueError("Invalid unit_name")
     restore = [
