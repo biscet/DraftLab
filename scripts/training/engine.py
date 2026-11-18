@@ -55,7 +55,7 @@ def train_batch(args, backend, batch, step, emit):
             batch_ids=[sample["id"] for sample in batch],
         )
     loss, metrics, retries = amp_train_step(
-        partial(objective.compute, batch, anchors, width),
+        partial(objective.compute, batch, anchors, width, training=True),
         model.parameters(),
         optimizer,
         scaler,

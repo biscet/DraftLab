@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from scripts.coach_core.constants.configuration import DEFAULT_CONFIG, PATH_FIELDS
+from scripts.coach_core.constants.recipe import TRAINING_OBJECTIVES
 from scripts.coach_core.types import Config, PathLike
 
 
@@ -18,6 +19,8 @@ def load_config(path: PathLike) -> Config:
     resolve_paths(cfg, path.parent)
     cfg["python"] = resolve_python(cfg["python"], path.parent)
     cfg["mentor"] = resolve_mentor(cfg.get("mentor"), path.parent)
+    if cfg["training_objective"] not in TRAINING_OBJECTIVES:
+        raise ValueError("training_objective must be uniform or dpace")
     if Path(cfg["output_name"]).name != cfg["output_name"]:
         raise ValueError("output_name must be a filename")
     return cfg

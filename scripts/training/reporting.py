@@ -33,6 +33,7 @@ def training_report(
         "eval_examples": validation_count,
         "initial_draft": str(args.initial_draft),
         "learning_rate": args.learning_rate,
+        "objective": args.objective,
         "amp_overflow_retries": batches.overflow_retries,
         "amp_final_scale": backend.scaler.get_scale(),
         "pool_field": args.pool_field,

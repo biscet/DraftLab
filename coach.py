@@ -13,11 +13,12 @@ def main():
         description="DFlash Coach: draft fine-tuning orchestration",
     )
     parser.add_argument("command", choices=COMMANDS)
-    args, remaining = parser.parse_known_args()
+    parser.add_argument("arguments", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+    args = parser.parse_args()
 
     module_name = "scripts.commands." + COMMANDS[args.command]
     command = importlib.import_module(module_name)
-    sys.argv = [f"{sys.argv[0]} {args.command}", *remaining]
+    sys.argv = [f"{sys.argv[0]} {args.command}", *args.arguments]
     command.main()
 
 

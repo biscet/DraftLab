@@ -1,4 +1,4 @@
-# DFlash Coach 1.0.0: установка и работа
+# Установка и запуск DFlash Coach 2.0.0
 
 [English version](guide.en.md) | [Описание проекта](../README.ru.md)
 
@@ -119,6 +119,7 @@ embedding и output head из GGUF. Отдельные полные FP16/BF16-в
 | `capture_binary`, `tokenize_binary`, `server_binary` | Собранные исполняемые файлы |
 | `gpu_uuids` | Видимые устройства в нужном CUDA-порядке |
 | `capture_context` | Окно для самого длинного промпта и новой генерации |
+| `training_objective` | `uniform` по умолчанию или `dpace` |
 | `shard_feature_budget_gib` | Верхняя оценка размера признаков одной train-порции |
 | `validation_monitor_rows`, `benchmark_test_rows` | Размеры отложенных рабочих выборок |
 | `max_epochs` | Предел полных проходов; null разрешает наставнику запросить ещё |
@@ -129,12 +130,24 @@ embedding и output head из GGUF. Отдельные полные FP16/BF16-в
 порции. Общий лимит API-токенов не задан. Временные ошибки API повторяются;
 ошибка авторизации завершает запуск. Расход и тарифы провайдера проверяйте отдельно.
 
+Чтобы включить D-PACE, задайте `"training_objective": "dpace"` перед
+`prepare`. Рецепт сглаживает вероятность правильного токена с α = 0,5,
+перемножает вероятности вдоль префикса и взвешивает каждую позицию по сумме
+вероятностей префиксов, в которые она входит. Градиент через веса не идёт.
+Веса применяются к ошибкам токенов и к ошибкам селектора на позициях,
+где правильный токен входит в top-16 draft. Итог делится на число блоков.
+
+Для валидации и выбора checkpoint используется uniform loss. Это даёт
+общую шкалу для сравнения. Функция потерь закрепляется в плане обучения.
+Чтобы сменить её, подготовьте новый `run_dir`. Формула и парный эксперимент
+описаны в ML-Docs. [D-PACE](https://github.com/biscet/ML-Docs/blob/main/docs/experiments/position-weighting.ru.md)
+
 ## 6. Публичные датасеты
 
 В проекте есть примеры для двух наборов:
 
 - [DFlash DeepSeek TraceMix](https://huggingface.co/datasets/biscet/DFlash-DeepSeek-TraceMix).
-- [DFlash TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-TraceMix-Lite).
+- [DFlash ChatGPT TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-ChatGPT-TraceMix-Lite).
 
 Ревизии и пути к файлам заданы в `examples/huggingface-datasets.json`.
 Для этих публичных файлов HF-токен не нужен. Загрузчик оставляет только поля

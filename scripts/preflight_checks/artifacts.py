@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from scripts.coach_core.constants.paths import PROJECT_ROOT
+from scripts.coach_core.constants.recipe import UNIFORM_OBJECTIVE
 from scripts.coach_core.files import digest
 
 
@@ -12,7 +13,8 @@ def require_digest(path, expected, message):
 
 
 def check_configuration(cfg, plan):
-    if cfg != plan["config"]:
+    planned = {"training_objective": UNIFORM_OBJECTIVE, **plan["config"]}
+    if {"training_objective": UNIFORM_OBJECTIVE, **cfg} != planned:
         raise ValueError("Configuration changed; prepare a new run_dir")
 
     for key in ("production_config", "production_launcher"):

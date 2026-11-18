@@ -21,6 +21,7 @@
   "max_new_tokens": 320,
   "capture_context": 14336,
   "training_context": 384,
+  "training_objective": "uniform",
   "batch_size": 4,
   "learning_rate": 2.5e-06,
   "checkpoint_bytes_estimate": 7500000000,

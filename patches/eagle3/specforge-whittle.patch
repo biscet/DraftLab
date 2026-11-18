@@ -1,0 +1,413 @@
+diff --git a/examples/configs/offline/colocated/whittle-35b-a3b-eagle3-v100.yaml b/examples/configs/offline/colocated/whittle-35b-a3b-eagle3-v100.yaml
+new file mode 100644
+index 0000000..e96c7ee
+--- /dev/null
++++ b/examples/configs/offline/colocated/whittle-35b-a3b-eagle3-v100.yaml
+@@ -0,0 +1,40 @@
++model:
++  target_model_path: ../target
++  torch_dtype: float16
++  use_liger_kernel: false
++  tokenizer_pad_token_id: 248044
++draft: specforge/config/draft/presets/whittle-35b-a3b-eagle3.yaml
++initialization: {}
++data:
++  hidden_states_path: ../features
++  max_length: 1024
++  chat_template: qwen
++  cache_dir: ../cache
++training:
++  num_epochs: 1
++  batch_size: 1
++  accumulation_steps: 4
++  gradient_checkpointing: true
++  optimizer_cpu_offload: false
++  fsdp_sharding: NO_SHARD
++  learning_rate: 0.00005
++  max_grad_norm: 0.5
++  objective_options:
++    ttt_length: 3
++  attention_backend: sdpa
++  loss:
++    fused: false
++    execution:
++      checkpoint: true
++      chunk_size: 128
++      teacher_chunk_size: 16384
++  save_interval: 100
++  max_checkpoints: 2
++  log_interval: 10
++run_id: whittle-35b-eagle3-v100
++output_dir: ../runs/whittle-35b-eagle3-v100
++deployment:
++  mode: local_colocated
++  trainer:
++    nnodes: 1
++    nproc_per_node: 1
+diff --git a/scripts/whittle_eagle3.py b/scripts/whittle_eagle3.py
+new file mode 100644
+index 0000000..0d7c724
+--- /dev/null
++++ b/scripts/whittle_eagle3.py
+@@ -0,0 +1,221 @@
++#!/usr/bin/env python3
++"""Stream qwen4exp GGUF teacher features into SpecForge offline checkpoints."""
++
++import argparse
++import fcntl
++import hashlib
++import json
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++
++LAYERS = [2, 20, 37]
++LAYOUT = "native-attn-mix-v1"
++WIDTH = 2048
++VOCAB = 248320
++
++
++def identity(path):
++    path = path.resolve(strict=True)
++    st = path.stat()
++    return {"path": str(path), "size": st.st_size, "mtime_ns": st.st_mtime_ns}
++
++
++def write_json(path, value):
++    temporary = path.with_suffix(".tmp")
++    temporary.write_text(json.dumps(value, indent=2) + "\n")
++    temporary.replace(path)
++
++
++def verify_manifest(path, expected):
++    if path.exists():
++        if json.loads(path.read_text()) != expected:
++            raise ValueError(f"{path} describes a different model, dataset or capture configuration")
++    else:
++        write_json(path, expected)
++
++
++def capture_features(args):
++    import torch
++
++    if not 2 <= args.max_tokens <= 8192 or args.shard_size < 1:
++        raise ValueError("max-tokens must be between 2 and 8192 and shard-size must be positive")
++    output = args.output.resolve()
++    output.mkdir(parents=True, exist_ok=True)
++    with (output / ".capture.lock").open("a") as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        with args.exporter.open("rb") as binary, args.input.open("rb") as data:
++            manifest = {
++                "model": identity(args.model),
++                "data_sha256": hashlib.file_digest(data, "sha256").hexdigest(),
++                "exporter_sha256": hashlib.file_digest(binary, "sha256").hexdigest(),
++                "feature_layout": LAYOUT,
++                "layers": LAYERS,
++                "max_tokens": args.max_tokens,
++                "volta_small_attention": os.getenv("GGML_CUDA_FA_VOLTA_SMALL", "0"),
++                "shard_size": args.shard_size,
++                "width": WIDTH,
++            }
++        verify_manifest(output / "manifest.json", manifest)
++        with tempfile.TemporaryDirectory(dir=output, prefix=".pending-") as temporary:
++            pending = Path(temporary) / "input.jsonl"
++            count = 0
++            with args.input.open() as data, pending.open("w") as staged:
++                for index, line in enumerate(data):
++                    if args.limit and index >= args.limit:
++                        break
++                    shard = output / f"shard-{index // args.shard_size:06d}"
++                    destination = shard / f"{index:09d}.ckpt"
++                    if destination.is_file():
++                        continue
++                    row = json.loads(line)
++                    ids = row["input_ids"]
++                    if "loss_mask" in row:
++                        mask = row["loss_mask"]
++                    else:
++                        prompt_n = row["prompt_n"]
++                        if not 1 <= prompt_n < len(ids):
++                            raise ValueError(f"Invalid prompt_n at row {index}")
++                        mask = [0] * prompt_n + [1] * (len(ids) - prompt_n)
++                    if len(ids) != len(mask) or any(value not in (0, 1) for value in mask):
++                        raise ValueError(f"Invalid loss_mask at row {index}")
++                    ids, mask = ids[: args.max_tokens], mask[: args.max_tokens]
++                    if len(ids) < 3 or not any(mask[1:-1]):
++                        continue
++                    staged.write(json.dumps({"input_ids": ids, "loss_mask": mask, "index": index}) + "\n")
++                    count += 1
++            if not count:
++                print("No pending samples")
++                return
++            print(f"Capturing {count} samples", flush=True)
++            capture_pending(args, pending, output, torch)
++
++
++def capture_pending(args, pending, output, torch):
++    command = [str(args.exporter.resolve()), str(args.model.resolve()), str(pending), str(args.max_tokens)]
++    with subprocess.Popen(command, stdout=subprocess.PIPE) as exporter:
++        try:
++            with pending.open() as staged:
++                for line in staged:
++                    row = json.loads(line)
++                    index = row["index"]
++                    ids = row["input_ids"]
++                    byte_count = len(ids) * 4 * WIDTH * 2
++                    raw = bytearray(exporter.stdout.read(byte_count))
++                    if len(raw) != byte_count:
++                        raise RuntimeError(f"Teacher stream stopped during sample {index}")
++                    states = torch.frombuffer(raw, dtype=torch.float16).reshape(len(ids), 4, WIDTH)
++                    sample = {
++                        "input_ids": torch.tensor(ids, dtype=torch.long),
++                        "loss_mask": torch.tensor(row["loss_mask"], dtype=torch.long),
++                        "aux_hidden_state": states[:, :3].reshape(1, len(ids), 3 * WIDTH).contiguous(),
++                        "hidden_state": states[:, 3].unsqueeze(0).contiguous(),
++                    }
++                    shard = output / f"shard-{index // args.shard_size:06d}"
++                    shard.mkdir(exist_ok=True)
++                    target = shard / f"{index:09d}.ckpt"
++                    temporary = target.with_suffix(".tmp")
++                    try:
++                        with temporary.open("wb") as file:
++                            torch.save(sample, file)
++                            file.flush()
++                            os.fsync(file.fileno())
++                        temporary.replace(target)
++                    finally:
++                        temporary.unlink(missing_ok=True)
++                    print(f"Saved {target.name} ({len(ids)} tokens)", flush=True)
++            if exporter.stdout.read(1) or exporter.wait() != 0:
++                raise RuntimeError("Teacher exporter did not finish cleanly")
++        except BaseException:
++            exporter.terminate()
++            raise
++
++
++def prepare_target(args):
++    import numpy as np
++    from gguf import GGUFReader, dequantize
++    from safetensors.numpy import save_file
++
++    config = json.loads((args.target / "config.json").read_text())
++    config = config.get("text_config", config)
++    if (config["hidden_size"], config["vocab_size"], config["num_hidden_layers"]) != (WIDTH, VOCAB, 40):
++        raise ValueError("Expected the published Whittle text configuration")
++    model = GGUFReader(args.model)
++    architecture = model.fields["general.architecture"].contents()
++    if architecture != "qwen4exp":
++        raise ValueError("Expected a qwen4exp GGUF")
++
++    weights = {
++        "model.embed_tokens.weight": "token_embd.weight",
++        "lm_head.weight": "output.weight",
++    }
++    manifest = {"model": identity(args.model), "dtype": "float16", "tensors": weights}
++    index = args.target / "model.safetensors.index.json"
++    with (args.target / ".weights.lock").open("a") as lock:
++        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        verify_manifest(args.target / "source_gguf.json", manifest)
++        if index.exists():
++            return
++        tensors = {tensor.name: tensor for tensor in model.tensors if tensor.name in weights.values()}
++        weight_map = {}
++        for i, (key, name) in enumerate(weights.items(), 1):
++            source = tensors[name]
++            if tuple(source.shape) != (WIDTH, VOCAB):
++                raise ValueError(f"Unexpected {name} shape {source.shape}")
++            filename = f"model-{i:05d}-of-00002.safetensors"
++            final = args.target / filename
++            if not final.exists():
++                table = np.empty((VOCAB, WIDTH), dtype=np.float16)
++                for offset in range(0, VOCAB, 4096):
++                    rows = source.data[offset : offset + 4096]
++                    table[offset : offset + len(rows)] = dequantize(rows, source.tensor_type)
++                temporary = final.with_suffix(".tmp")
++                try:
++                    save_file({key: table}, temporary)
++                    temporary.replace(final)
++                finally:
++                    temporary.unlink(missing_ok=True)
++                del table
++            weight_map[key] = filename
++        write_json(index, {"metadata": {"total_size": 2 * 2 * WIDTH * VOCAB}, "weight_map": weight_map})
++
++
++def tag_export(args):
++    path = args.draft / "config.json"
++    config = json.loads(path.read_text())
++    layer_ids = config.get("eagle_config", {}).get("eagle_aux_hidden_state_layer_ids")
++    if layer_ids != LAYERS or config.get("target_hidden_size") != WIDTH:
++        raise ValueError("The serving checkpoint does not match the Whittle capture layout")
++    config["qwen4exp_feature_layout"] = LAYOUT
++    config["eagle_aux_hidden_state_layer_ids"] = layer_ids
++    write_json(path, config)
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    commands = parser.add_subparsers(dest="command", required=True)
++    capture = commands.add_parser("capture")
++    capture.add_argument("--model", required=True, type=Path)
++    capture.add_argument("--exporter", required=True, type=Path)
++    capture.add_argument("--input", required=True, type=Path)
++    capture.add_argument("--output", required=True, type=Path)
++    capture.add_argument("--max-tokens", default=1024, type=int)
++    capture.add_argument("--shard-size", default=256, type=int)
++    capture.add_argument("--limit", type=int)
++    capture.set_defaults(run=capture_features)
++
++    target = commands.add_parser("prepare-target")
++    target.add_argument("--model", required=True, type=Path)
++    target.add_argument("--target", required=True, type=Path)
++    target.set_defaults(run=prepare_target)
++
++    tag = commands.add_parser("tag-export")
++    tag.add_argument("--draft", required=True, type=Path)
++    tag.set_defaults(run=tag_export)
++    args = parser.parse_args()
++    args.run(args)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/specforge/config/draft/presets/whittle-35b-a3b-eagle3.yaml b/specforge/config/draft/presets/whittle-35b-a3b-eagle3.yaml
+new file mode 100644
+index 0000000..730bafb
+--- /dev/null
++++ b/specforge/config/draft/presets/whittle-35b-a3b-eagle3.yaml
+@@ -0,0 +1,64 @@
++schema_version: 1
++model_type: specforge_draft
++architectures:
++- Eagle3DraftModel
++extensions: []
++hidden_size: 2048
++vocab_size: 248320
++draft_vocab_size: 32000
++max_position_embeddings: 262144
++initializer_range: 0.02
++tie_word_embeddings: false
++attention_configs:
++  default:
++    type: gqa
++    rope_parameters: null
++    num_attention_heads: 16
++    num_key_value_heads: 4
++    head_dim: 128
++    qk_norm: false
++    qk_norm_position: before_rope
++    qk_norm_scope: head
++    qk_norm_config: null
++    attention_bias: false
++    output_gate: false
++    is_causal: true
++    sliding_window: null
++    attention_dropout: 0.0
++mlp_configs:
++  default:
++    type: dense
++    intermediate_size: 4096
++    hidden_act: silu
++conv_configs: {}
++layer_configs:
++  default:
++    attention: default
++    mlp: default
++    sublayer_conv: null
++layer_types:
++- default
++num_hidden_layers: 1
++norm_config:
++  type: rms
++  has_weight: true
++  eps: 1.0e-06
++  weight_offset: 0
++residual_config:
++  type: standard
++rope_parameters:
++  rope_type: default
++  interleaved: false
++  rope_theta: 10000000
++  partial_rotary_factor: 1.0
++spec_config:
++  target_features:
++    target_layer_ids:
++    - 2
++    - 20
++    - 37
++    hidden_size: 2048
++  normalize_features: false
++  norm_output: false
++target_bindings:
++- embed_tokens
+diff --git a/specforge/config/schema.py b/specforge/config/schema.py
+index 08a321b..541af99 100644
+--- a/specforge/config/schema.py
++++ b/specforge/config/schema.py
+@@ -1041,6 +1041,7 @@ class TrainingConfig(StrictConfigModel):
+     total_steps: Optional[int] = Field(default=None, gt=0)
+     batch_size: int = Field(default=1, gt=0)
+     accumulation_steps: int = Field(default=1, gt=0)
++    gradient_checkpointing: bool = False
+     fsdp_sharding: Literal["SHARD_GRAD_OP", "FULL_SHARD", "NO_SHARD"] = "SHARD_GRAD_OP"
+     ddp_bucket_cap_mb: Optional[float] = Field(default=None, gt=0)
+     learning_rate: float = Field(default=1e-4, gt=0.0)
+diff --git a/specforge/modeling/draft/layers/attention/backends/flex.py b/specforge/modeling/draft/layers/attention/backends/flex.py
+index 74c0d7b..7516967 100644
+--- a/specforge/modeling/draft/layers/attention/backends/flex.py
++++ b/specforge/modeling/draft/layers/attention/backends/flex.py
+@@ -2,7 +2,6 @@
+ 
+ import torch
+ from torch.nn.attention.flex_attention import (
+-    AuxRequest,
+     create_block_mask,
+     flex_attention,
+ )
+@@ -55,6 +54,8 @@ class FlexAttentionBackend(AttentionBackend):
+         compute = (
+             flex_attention if torch.compiler.is_compiling() else _compiled_attention
+         )
++        from torch.nn.attention.flex_attention import AuxRequest
++
+         output, aux = compute(
+             query,
+             key,
+diff --git a/specforge/training/canonical.py b/specforge/training/canonical.py
+index 6dc3b7d..0faf787 100644
+--- a/specforge/training/canonical.py
++++ b/specforge/training/canonical.py
+@@ -439,6 +439,23 @@ def build_bundle(cfg, algorithm):
+ 
+     target = training_target_config(cfg)
+     draft = resolve_config(cfg, target_config=target)
++    gguf_manifest = Path(cfg.model.target_model_path) / "source_gguf.json"
++    if cfg.mode == "offline" and gguf_manifest.is_file():
++        import json
++
++        weights_source = json.loads(gguf_manifest.read_text())
++        feature_source = json.loads(
++            (Path(cfg.data.hidden_states_path) / "manifest.json").read_text()
++        )
++        if weights_source["model"] != feature_source["model"]:
++            raise ValueError("Feature cache and frozen teacher tables refer to different GGUF files")
++        capture = draft.spec_config.target_features
++        if (
++            feature_source["feature_layout"] != "native-attn-mix-v1"
++            or tuple(feature_source["layers"]) != capture.target_layer_ids
++            or feature_source["width"] != capture.hidden_size
++        ):
++            raise ValueError("Whittle feature cache layout does not match the draft configuration")
+     resolved = resolve_objective(draft.architecture, **_objective_settings(cfg))
+     dtype, device = getattr(torch, cfg.model.torch_dtype), _device()
+     init = cfg.initialization
+@@ -514,6 +531,8 @@ def build_bundle(cfg, algorithm):
+             from_target=from_target or None,
+             cast_target_copies=cast_copies,
+         )
++    if cfg.training.gradient_checkpointing:
++        model.gradient_checkpointing_enable()
+     teacher = None
+     if resolved.requires_teacher:
+         transform = resolve_target_logits(target_weights.config)

@@ -4,7 +4,7 @@
 import argparse
 from pathlib import Path
 
-from scripts.training.pipeline import train
+from scripts.coach_core.constants.recipe import TRAINING_OBJECTIVES, UNIFORM_OBJECTIVE
 
 
 def parse_args():
@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--context", type=int, default=384)
+    parser.add_argument("--objective", choices=TRAINING_OBJECTIVES, default=UNIFORM_OBJECTIVE)
     parser.add_argument("--learning-rate", type=float, default=1e-5)
     parser.add_argument("--initial-draft", type=Path, required=True)
     parser.add_argument("--output-name", default="draft-candidate-F16.gguf")
@@ -34,7 +35,10 @@ def parse_args():
 
 
 def main():
-    train(parse_args())
+    args = parse_args()
+    from scripts.training.pipeline import train
+
+    train(args)
 
 
 if __name__ == "__main__":

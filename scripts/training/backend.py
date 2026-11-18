@@ -15,6 +15,7 @@ def create_backend(args, validation):
     objective = ShardObjective(
         model, embedding, head,
         args.context, args.batch_size, validation,
+        args.objective,
     )
     optimizer = create_optimizer(model, args.learning_rate)
     scaler = torch.amp.GradScaler("cuda", init_scale=1024)

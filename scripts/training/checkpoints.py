@@ -5,6 +5,7 @@ import random
 
 import torch
 
+from scripts.coach_core.constants.recipe import UNIFORM_OBJECTIVE
 from scripts.coach_core.types.training import TrainingProgress
 from scripts.training.checkpoint_seed import validate_seed
 
@@ -31,6 +32,8 @@ def restore_checkpoint(args, backend):
         validate_seed(saved, args.seed_plan_hash, args.seed_step)
     elif saved["plan_hash"] != args.plan_hash:
         raise RuntimeError("Checkpoint belongs to another frozen plan")
+    elif saved.get("objective", UNIFORM_OBJECTIVE) != args.objective:
+        raise RuntimeError("Checkpoint belongs to a different training objective")
 
     backend.model.load_state_dict(saved["model"])
     backend.optimizer.load_state_dict(saved["optimizer"])
@@ -84,6 +87,7 @@ def commit_checkpoint(args, backend, progress, current_state, result):
         "step": result["steps"],
         "stage_key": args.stage_key,
         "plan_hash": args.plan_hash,
+        "objective": args.objective,
         "model": current_state,
         "best_model": progress.best_model,
         "optimizer": backend.optimizer.state_dict(),

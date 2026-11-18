@@ -2,7 +2,12 @@
 
 [Архитектура проекта](docs/architecture.ru.md).
 
-Версия 1.0.0. [English instructions](README.md).
+Версия 2.0.0. [English instructions](README.md).
+
+> [!NOTE]
+> **Экспериментальный выпуск для сообщества.** Этот выпуск предназначен
+> для исследований и пробных запусков обучения draft-моделей и
+> спекулятивного декодирования.
 
 DFlash Coach снимает признаки целевой модели из GGUF, дообучает DFlash2 draft
 и сравнивает результат с родительским draft. DeepSeek Flash проверяет метрики
@@ -17,6 +22,8 @@ DFlash Coach снимает признаки целевой модели из GG
 
 - Захват признаков и подсчёт токенов через совместимую сборку llama.cpp.
 - Trainer с сохранением весов, optimizer, scaler и состояния генераторов случайных чисел.
+- Функции потерь Uniform и D-PACE для обучения DFlash2.
+- Офлайн-захват признаков, обучение Whittle EAGLE-3 и экспорт в GGUF на V100 32 ГБ.
 - Контроллер с порционной обработкой признаков и ограничением рабочего места на диске.
 - Проверка метрик через DeepSeek, журнал решений и изменение темпа обучения.
 - Сравнение трёх режимов: без draft, родительский draft и новый кандидат.
@@ -40,7 +47,7 @@ python3 coach.py privacy-check
 и не обращается к DeepSeek. Если PyTorch не установлен, связанные с ним тесты
 будут пропущены. Для повторного запуска демо выберите новую папку.
 
-## Настоящее обучение
+## Обучение DFlash2
 
 Пошаговый порядок описан в [русской инструкции](docs/guide.ru.md).
 Там есть сборка runtime, установка окружения, формат данных, настройка ключа,
@@ -51,12 +58,25 @@ python3 coach.py privacy-check
 свои пути. Относительные пути отсчитываются от папки файла JSON.
 Для небольшого датасета используйте `configs/lite.example.json`.
 
+Чтобы включить D-PACE, задайте `"training_objective": "dpace"` до подготовки
+нового запуска. По умолчанию действует `uniform`. В инструкции по DFlash2
+описано, как D-PACE взвешивает ошибки токенов и селектора.
+
+## Обучение Whittle EAGLE-3
+
+`python3 coach.py eagle3 --help` показывает команды для захвата признаков,
+обучения и экспорта. Установка, подготовка замороженных таблиц target и
+возобновление обучения описаны в [инструкции EAGLE-3](docs/eagle3.ru.md).
+
+В ML-Docs описаны исходный эксперимент D-PACE и формат признаков Whittle
+для EAGLE-3. [ML-Docs](https://github.com/biscet/ML-Docs)
+
 ## Примеры датасетов
 
 - [DFlash DeepSeek TraceMix](https://huggingface.co/datasets/biscet/DFlash-DeepSeek-TraceMix).
   Пример `deepseek` загружает основные task split. Пример `stage2` берёт отдельные
   272 обучающих контекста и основные validation/test для проверки.
-- [DFlash TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-TraceMix-Lite).
+- [DFlash ChatGPT TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-ChatGPT-TraceMix-Lite).
   Пример `lite` использует OpenMix. В исходном поднаборе нет отдельного test,
   поэтому загрузчик делит проверочные семейства между validation и test.
 
@@ -79,9 +99,8 @@ python3 coach.py privacy-check
 
 ## Версии и лицензии
 
-Ветка `main` содержит текущую разработку. `v1.0.0` сохраняет первый релиз.
-Срезы релизов сохраняются отдельными ветками без тегов. Для следующих версий
-создаются новые ветки. Порядок описан в [правилах выпуска](docs/releases.md).
+В `main` опубликована версия v2.0.0. Первый выпуск хранится в ветке `v1.0.0`.
+См. [историю изменений](CHANGELOG.md) и [порядок выпуска](docs/releases.md).
 
 Собственные утилиты распространяются под Apache-2.0. Реализация модели из DFlash
 сохраняет MIT. См. [NOTICE](NOTICE), [LICENSE](LICENSE) и [DFlash MIT](licenses/DFlash-MIT.txt).

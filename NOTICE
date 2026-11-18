@@ -1,4 +1,4 @@
-DFlash Coach v1.0.0
+DFlash Coach v2.0.0
 
 The orchestration, training utilities and capture tools in this package are
 provided under Apache License 2.0. No target weights or draft weights are included.
@@ -11,6 +11,13 @@ Upstream: https://github.com/z-lab/dflash
 The capture tools use APIs from the compatible llama.cpp fork. That runtime is
 not bundled. Its source and license must be obtained separately.
 Runtime source: https://github.com/mistrjirka/llama.cpp
+
+The EAGLE-3 companion patches modify SpecForge and llama.cpp. See
+licenses/SpecForge-MIT.txt and licenses/llama.cpp-MIT.txt for their notices.
+The llama.cpp patch includes Volta work from the following public commits:
+https://github.com/anyei/llamacpp-v100/commit/d6c02899a83c175fc3e56f3b07c6da0f4b6e5ee3
+https://github.com/mistrjirka/llama.cpp/commit/67fb99911b2d80845276e6ec0e048a7711b052a6
+https://github.com/mistrjirka/llama.cpp/commit/28f085911f94f56a91485bdcb3c2dcfb3acaa87f
 
 Public dataset references are examples authorized for inclusion. Dataset files
 are not bundled. Follow the source notices and terms of each downloaded dataset.

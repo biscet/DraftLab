@@ -1,24 +1,36 @@
 """DFlash loss computation and weighted validation on the fixed monitor."""
 
 import torch
+from torch.nn import functional as F
+
 from scripts.coach_core.constants.recipe import (
-    FEATURE_WIDTH, MASK_TOKEN_ID, SELECTOR_TOP_K, VOCAB_SIZE,
+    DPACE_OBJECTIVE,
+    FEATURE_WIDTH,
+    MASK_TOKEN_ID,
+    SELECTOR_IGNORE_INDEX,
+    SELECTOR_LOSS_WEIGHT,
+    SELECTOR_TOP_K,
+    UNIFORM_OBJECTIVE,
+    VOCAB_SIZE,
 )
 from scripts.coach_core.metrics import weighted_metrics
 from scripts.coach_core.types.training import ObjectiveBatch
-from torch.nn import functional as F
-
 from scripts.training.data import copy_feature_rows
+from scripts.training.position_loss import dpace_loss
 
 
 class ShardObjective:
-    def __init__(self, model, embedding, head, context, batch_size, validation):
+    def __init__(
+        self, model, embedding, head, context, batch_size, validation,
+        objective=UNIFORM_OBJECTIVE,
+    ):
         self.model = model
         self.embedding = embedding
         self.head = head
         self.context = context
         self.batch_size = batch_size
         self.validation = validation
+        self.objective = objective
         self.device = embedding.device
 
     def prepare_batch(self, batch, anchors, width):
@@ -58,7 +70,7 @@ class ShardObjective:
             previous=previous,
         )
 
-    def compute(self, batch, anchors, width):
+    def compute(self, batch, anchors, width, *, training=False):
         prepared = self.prepare_batch(batch, anchors, width)
         with torch.autocast("cuda", dtype=torch.float16):
             hidden = self.model(
@@ -68,7 +80,9 @@ class ShardObjective:
                 target_hidden=prepared.features,
             )
             logits = F.linear(hidden[:, 1:], self.head).float()
-            ce = F.cross_entropy(logits.reshape(-1, VOCAB_SIZE), prepared.gold.flatten())
+            token_nll = F.cross_entropy(
+                logits.reshape(-1, VOCAB_SIZE), prepared.gold.flatten(), reduction="none",
+            ).reshape_as(prepared.gold)
             unary, candidates = logits.topk(SELECTOR_TOP_K, dim=-1)
             selector = self.model.candidate_selector
             gate = selector.hidden_projection(hidden[:, 1:]).float()
@@ -78,12 +92,17 @@ class ShardObjective:
             scores = unary + (weighted_predecessor * successor).sum(-1)
             matches = candidates.eq(prepared.gold[:, :, None])
             covered = matches.any(-1)
-            if covered.any():
-                target_indices = matches.long().argmax(-1)[covered]
-                selector_loss = F.cross_entropy(scores[covered], target_indices)
+            target_indices = matches.long().argmax(-1).masked_fill(~covered, SELECTOR_IGNORE_INDEX)
+            selector_nll = F.cross_entropy(
+                scores.transpose(1, 2), target_indices, reduction="none",
+                ignore_index=SELECTOR_IGNORE_INDEX,
+            )
+            ce = token_nll.mean()
+            selector_loss = selector_nll.sum() / covered.sum().clamp_min(1)
+            if training and self.objective == DPACE_OBJECTIVE:
+                loss = dpace_loss(token_nll, selector_nll)
             else:
-                selector_loss = scores.sum() * 0
-            loss = ce + 0.5 * selector_loss
+                loss = ce + SELECTOR_LOSS_WEIGHT * selector_loss
         chosen = candidates.gather(-1, scores.argmax(-1, keepdim=True)).squeeze(-1)
         correct = chosen.eq(prepared.gold)
         prefix = correct.long().cumprod(-1).sum(-1).float()

@@ -3,6 +3,7 @@
 COMMANDS = {
     "launch": "launch",
     "train-shard": "train_shard",
+    "eagle3": "eagle3",
     "demo": "demo",
     "prepare": "prepare",
     "verify-tokens": "verify_tokens",

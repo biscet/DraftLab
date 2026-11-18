@@ -1,4 +1,4 @@
-# DFlash Coach 1.0.0: setup and use
+# Set up and use DFlash Coach 2.0.0
 
 [Русская версия](guide.ru.md) | [Project overview](../README.md)
 
@@ -120,6 +120,7 @@ Review these settings before using the example:
 | `capture_binary`, `tokenize_binary`, `server_binary` | Built executables |
 | `gpu_uuids` | Visible devices in the intended CUDA order |
 | `capture_context` | Must fit the largest prompt plus generated tokens |
+| `training_objective` | `uniform` (default) or `dpace` |
 | `shard_feature_budget_gib` | Upper bound for a train shard's feature files |
 | `validation_monitor_rows`, `benchmark_test_rows` | Reserved sample counts |
 | `max_epochs` | Maximum full passes; null lets the mentor request more passes |
@@ -130,12 +131,24 @@ The example allows at most one pass. The mentor can stop after an earlier shard.
 There is no configured total API-token budget. Transient API errors are retried;
 invalid authorization ends the run. Review provider usage and costs yourself.
 
+For D-PACE, set `"training_objective": "dpace"` before running `prepare`.
+The recipe smooths each gold-token probability with α = 0.5, multiplies
+confidences along the prefix and weights each position by the sum of
+confidences for prefixes that include it. The weights are detached from
+autograd. They apply to token NLL and to selector NLL where the draft
+top-16 contains the gold token. The weighted sum is averaged over blocks.
+
+Validation and checkpoint selection use the uniform loss so that runs
+share a common scale. The training objective is frozen with the run plan.
+To switch objectives, prepare a new `run_dir`. See the paired experiment
+and its loss formula. [D-PACE in ML-Docs](https://github.com/biscet/ML-Docs/blob/main/docs/experiments/position-weighting.md)
+
 ## 6. Choose a public dataset example
 
 The repository contains references to these public datasets:
 
 - [DFlash DeepSeek TraceMix](https://huggingface.co/datasets/biscet/DFlash-DeepSeek-TraceMix).
-- [DFlash TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-TraceMix-Lite).
+- [DFlash ChatGPT TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-ChatGPT-TraceMix-Lite).
 
 Pinned revisions and file paths are in `examples/huggingface-datasets.json`.
 The downloader does not require a Hugging Face token for these public files.

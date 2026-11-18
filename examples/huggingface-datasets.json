@@ -18,7 +18,7 @@
     }
   },
   "lite": {
-    "repository": "biscet/DFlash-TraceMix-Lite",
+    "repository": "biscet/DFlash-ChatGPT-TraceMix-Lite",
     "revision": "a310d187a11865861017c773f7609dbef64d0fee",
     "files": {
       "train": "data/openmix/train.jsonl",

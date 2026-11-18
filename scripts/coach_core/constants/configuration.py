@@ -1,6 +1,7 @@
 """Configuration defaults and filesystem settings."""
 
 from scripts.coach_core.constants.paths import PROJECT_ROOT
+from scripts.coach_core.constants.recipe import UNIFORM_OBJECTIVE
 from scripts.coach_core.types import Config
 
 DEFAULT_CONFIG: Config = {
@@ -21,6 +22,7 @@ DEFAULT_CONFIG: Config = {
     "max_new_tokens": 320,
     "capture_context": 14336,
     "training_context": 384,
+    "training_objective": UNIFORM_OBJECTIVE,
     "batch_size": 4,
     "learning_rate": 2.5e-6,
     "output_name": "draft-candidate-F16.gguf",

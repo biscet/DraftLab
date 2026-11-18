@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from scripts.coach_core.constants.paths import PROJECT_ROOT
+from scripts.coach_core.constants.recipe import UNIFORM_OBJECTIVE
 from scripts.coach_core.files import digest
 from scripts.coach_core.types import Config, Record
 
@@ -76,6 +77,8 @@ def training_command(
         str(cfg["batch_size"]),
         "--context",
         str(cfg["training_context"]),
+        "--objective",
+        cfg.get("training_objective", UNIFORM_OBJECTIVE),
         "--learning-rate",
         str(learning_rate),
         "--pool-field",

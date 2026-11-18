@@ -1,6 +1,10 @@
 # DFlash Coach
 
-Version 1.0.0. [Russian instructions](README.ru.md).
+Version 2.0.0. [Russian instructions](README.ru.md).
+
+> [!NOTE]
+> **Experimental community release.** This release is intended for research
+> and hands-on experiments with draft-model training and speculative decoding.
 
 DFlash Coach captures features from a GGUF target model, fine-tunes a DFlash2
 draft and compares the result with its parent. DeepSeek Flash reviews validation
@@ -14,6 +18,8 @@ and CUDA. The offline demo, status command and most tests also work on macOS.
 
 - Capture and token-count tools for a compatible llama.cpp fork.
 - A full draft trainer with checkpoint, optimizer, scaler and RNG recovery.
+- Uniform and D-PACE training objectives for DFlash2.
+- Offline Whittle EAGLE-3 capture, training and GGUF export for a 32 GB V100.
 - A controller that processes feature files in bounded shards.
 - DeepSeek review, decision history and learning-rate changes.
 - A benchmark for no-draft, parent draft and candidate draft.
@@ -37,7 +43,7 @@ The demo writes synthetic files outside the source folder. It does not train a
 model or call DeepSeek. Tests that need PyTorch are skipped when it is absent.
 Choose a new demo directory for another run.
 
-## Run real training
+## Train a DFlash2 draft
 
 Follow the [English guide](docs/guide.en.md). It covers the runtime build, CUDA
 environment, data format, API key, preparation, launch, resume and evaluation.
@@ -47,12 +53,25 @@ Start with `configs/example.json`. Copy it to `configs/training.local.json`
 before changing paths. Paths in JSON are resolved relative to that JSON file.
 The small dataset example uses `configs/lite.example.json` instead.
 
+Set `"training_objective": "dpace"` before preparing a new run to use
+D-PACE. The default is `uniform`. The DFlash2 guide explains how D-PACE
+weights token and selector losses.
+
+## Train a Whittle EAGLE-3 draft
+
+`python3 coach.py eagle3 --help` lists the capture, training and export stages.
+The [EAGLE-3 guide](docs/eagle3.en.md) covers setup, preparation of frozen target
+tables, and resuming an offline run with SpecForge and llama.cpp.
+
+The research notes in ML-Docs cover the original D-PACE experiment and the
+Whittle EAGLE-3 feature format. [ML-Docs](https://github.com/biscet/ML-Docs)
+
 ## Public dataset examples
 
 - [DFlash DeepSeek TraceMix](https://huggingface.co/datasets/biscet/DFlash-DeepSeek-TraceMix).
   Use `deepseek` for the main task splits or `stage2` for the separate 272-context
   training supplement with the main validation and test splits.
-- [DFlash TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-TraceMix-Lite).
+- [DFlash ChatGPT TraceMix Lite](https://huggingface.co/datasets/biscet/DFlash-ChatGPT-TraceMix-Lite).
   The `lite` example uses OpenMix. It reserves part of the source validation
   families for testing because that subset has no separate test file.
 
@@ -78,9 +97,8 @@ response quality. The candidate is not installed into an inference service.
 The architecture is documented in the
 [Russian architecture guide](docs/architecture.ru.md).
 
-`main` holds current development. `v1.0.0` is the saved first-release branch.
-Release snapshots use branches without tags. Later versions get their own saved
-branches. See [release steps](docs/releases.md).
+`main` contains v2.0.0. The `v1.0.0` branch preserves the first release.
+See the [changelog](CHANGELOG.md) and [release steps](docs/releases.md).
 
 Original utilities use Apache-2.0. The upstream DFlash model implementation uses
 MIT. See [NOTICE](NOTICE), [LICENSE](LICENSE) and [DFlash MIT](licenses/DFlash-MIT.txt).
